@@ -1,0 +1,21 @@
+{
+  "label": "Research (Permissive)",
+  "description": "Relaxed thresholds for exploratory work and precious samples.",
+  "conservatism": 0.2,
+  "downstream_tolerance": 0.6,
+  "role_nanodrop_conc": "Primary",
+  "role_a260_280": "Primary",
+  "role_a260_230": "Primary",
+  "role_fluor_conc": "Ignored",
+  "fluor_assay_label": "Fluorescence",
+  "nd_conc_must_threshold": 10,
+  "nd_conc_borderline_threshold": 20,
+  "a280_must_threshold": 1.60,
+  "a280_borderline_threshold": 1.70,
+  "a280_upper_threshold": 2.20,
+  "a230_must_threshold": 1.20,
+  "a230_borderline_threshold": 1.60,
+  "fl_conc_must_threshold": 10,
+  "fl_conc_borderline_threshold": 20,
+  "conc_discrepancy_pct": 30
+}

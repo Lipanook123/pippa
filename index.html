@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PIPPA — DNA Quality Triage</title>
+  <link rel="stylesheet" href="web/style.css">
+</head>
+<body>
+  <header>
+    <h1>PIPPA</h1>
+    <p class="subtitle">Purity Interpretation and Processing for Pre-sequencing Assessment</p>
+  </header>
+
+  <main>
+    <!-- Step 1: Configuration (preset + advanced) -->
+    <section class="step" id="step-config">
+      <h2><span class="step-number">1</span>Configuration</h2>
+      <div class="preset-buttons" id="preset-buttons">
+        <!-- Populated by app.js -->
+      </div>
+      <div class="btn-row" style="margin-bottom:0.75rem">
+        <button class="btn btn-secondary" id="btn-load-profile">Load saved profile (JSON)</button>
+        <input type="file" id="input-profile" accept=".json" style="display:none">
+        <button class="btn btn-secondary" id="btn-save-profile">Save current config</button>
+      </div>
+    </section>
+
+    <!-- Advanced config (collapsible) -->
+    <details id="details-config">
+      <summary>Advanced: adjust thresholds &amp; roles</summary>
+      <div class="details-body">
+        <!-- Metric roles -->
+        <p style="font-weight:600; font-size:0.85rem; margin-bottom:0.6rem">Metric Roles</p>
+        <div class="form-grid" style="margin-bottom:1rem">
+          <div class="form-group">
+            <label for="role-nd-conc">NanoDrop Concentration</label>
+            <select id="role-nd-conc">
+              <option value="Primary">Primary</option>
+              <option value="Supplementary">Supplementary</option>
+              <option value="Ignored">Ignored</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="role-a280">A260/A280</label>
+            <select id="role-a280">
+              <option value="Primary">Primary</option>
+              <option value="Supplementary">Supplementary</option>
+              <option value="Ignored">Ignored</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="role-a230">A260/A230</label>
+            <select id="role-a230">
+              <option value="Primary">Primary</option>
+              <option value="Supplementary">Supplementary</option>
+              <option value="Ignored">Ignored</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="role-fl-conc">Fluorescence Concentration</label>
+            <select id="role-fl-conc">
+              <option value="Primary">Primary</option>
+              <option value="Supplementary">Supplementary</option>
+              <option value="Ignored">Ignored</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="fluor-label">Fluorescence assay name</label>
+            <input type="text" id="fluor-label" placeholder="e.g. Qubit, PicoGreen">
+          </div>
+        </div>
+
+        <!-- Tuning knobs -->
+        <p style="font-weight:600; font-size:0.85rem; margin-bottom:0.6rem">Tuning</p>
+        <div class="form-grid" style="margin-bottom:1rem">
+          <div class="form-group">
+            <label>Conservatism (0 = permissive, 1 = strict)</label>
+            <div class="slider-row">
+              <input type="range" id="slider-conservatism" min="0" max="1" step="0.05">
+              <span class="slider-val" id="val-conservatism">0.50</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Downstream Tolerance (0 = intolerant, 1 = tolerant)</label>
+            <div class="slider-row">
+              <input type="range" id="slider-tolerance" min="0" max="1" step="0.05">
+              <span class="slider-val" id="val-tolerance">0.30</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Conc. discrepancy threshold (%)</label>
+            <input type="number" id="conc-discrepancy" min="1" max="100" step="1">
+          </div>
+        </div>
+
+        <!-- Thresholds -->
+        <p style="font-weight:600; font-size:0.85rem; margin-bottom:0.6rem">Thresholds</p>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>NanoDrop Conc — Must/Borderline (ng/µL)</label>
+            <input type="number" id="nd-must" step="0.5">
+          </div>
+          <div class="form-group">
+            <label>NanoDrop Conc — Borderline/Use (ng/µL)</label>
+            <input type="number" id="nd-borderline" step="0.5">
+          </div>
+          <div class="form-group">
+            <label>A260/A280 — Must/Borderline</label>
+            <input type="number" id="a280-must" step="0.01">
+          </div>
+          <div class="form-group">
+            <label>A260/A280 — Borderline/Use</label>
+            <input type="number" id="a280-borderline" step="0.01">
+          </div>
+          <div class="form-group">
+            <label>A260/A280 — Upper bound</label>
+            <input type="number" id="a280-upper" step="0.01">
+          </div>
+          <div class="form-group">
+            <label>A260/A230 — Must/Borderline</label>
+            <input type="number" id="a230-must" step="0.01">
+          </div>
+          <div class="form-group">
+            <label>A260/A230 — Borderline/Use</label>
+            <input type="number" id="a230-borderline" step="0.01">
+          </div>
+          <div class="form-group">
+            <label>Fluorescence Conc — Must/Borderline (ng/µL)</label>
+            <input type="number" id="fl-must" step="0.5">
+          </div>
+          <div class="form-group">
+            <label>Fluorescence Conc — Borderline/Use (ng/µL)</label>
+            <input type="number" id="fl-borderline" step="0.5">
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <!-- Step 2: Upload -->
+    <section class="step" id="step-upload">
+      <h2><span class="step-number">2</span>Upload Data</h2>
+      <div class="drop-zone" id="drop-zone">
+        <div class="upload-icon">📂</div>
+        <p>Drag &amp; drop an Excel file here, or <label for="input-excel">browse</label></p>
+        <p style="font-size:0.78rem; margin-top:0.3rem">.xlsx or .xls</p>
+        <input type="file" id="input-excel" accept=".xlsx,.xls" style="display:none">
+      </div>
+      <p class="upload-status" id="upload-status"></p>
+    </section>
+
+    <!-- Step 3: Column mapping (hidden until file loaded) -->
+    <section class="step" id="step-mapping" hidden>
+      <h2><span class="step-number">3</span>Map Columns</h2>
+      <p style="font-size:0.85rem; color:var(--color-text-muted); margin-bottom:0.75rem">
+        Match your spreadsheet columns to the metrics below. Auto-detected where possible.
+      </p>
+      <table class="mapping-table" id="mapping-table">
+        <thead>
+          <tr>
+            <th>Metric</th>
+            <th>Column in your file</th>
+          </tr>
+        </thead>
+        <tbody><!-- Populated by app.js --></tbody>
+      </table>
+    </section>
+
+    <!-- Step 4: Run -->
+    <section class="step" id="step-run" hidden>
+      <h2><span class="step-number">4</span>Run Triage</h2>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-run">Run Triage</button>
+      </div>
+    </section>
+
+    <!-- Step 5: Results (hidden until run) -->
+    <section class="step" id="step-results" hidden>
+      <h2><span class="step-number">5</span>Results</h2>
+      <div class="results-summary" id="results-summary"></div>
+      <div class="btn-row" style="margin-bottom:1rem">
+        <button class="btn btn-primary" id="btn-download">Download Results (.xlsx)</button>
+      </div>
+      <div class="table-wrapper">
+        <table class="results-table" id="results-table">
+          <thead><tr id="results-thead"></tr></thead>
+          <tbody id="results-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- SheetJS — pinned version, loaded before app.js -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script type="module" src="web/app.js"></script>
+</body>
+</html>
