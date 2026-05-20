@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>PIPPA Core Tests</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+    h1 { font-size: 1.4rem; }
+    #summary { font-size: 1.1rem; margin: 1rem 0; font-weight: bold; }
+    #summary.pass { color: #2e7d32; }
+    #summary.fail { color: #c62828; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th { text-align: left; padding: 0.4rem 0.5rem; background: #f5f5f5; }
+    td { padding: 0.35rem 0.5rem; border-top: 1px solid #eee; vertical-align: top; }
+    .pass td:first-child { color: #2e7d32; }
+    .fail td:first-child { color: #c62828; }
+    .fail { background: #fff8f8; }
+    pre { margin: 0; white-space: pre-wrap; word-break: break-word; color: #c62828; font-size: 0.8rem; }
+  </style>
+</head>
+<body>
+  <h1>PIPPA Core Tests</h1>
+  <p>Serve the repo root over HTTP (<code>python -m http.server 8080</code>), then open this page.</p>
+  <div id="summary">Running…</div>
+  <table>
+    <thead><tr><th>Result</th><th>Test</th><th>Detail</th></tr></thead>
+    <tbody id="results"></tbody>
+  </table>
+
+  <script type="module">
+    import {
+      ROLE, STATE, DECISION,
+      DEFAULT_CONFIG,
+      loadConfig, validateConfig,
+      computeNetStrict, computeEffectiveThresholds,
+      classifyNdConc, classifyA280, classifyA230, classifyFlConc,
+      classifyMetrics,
+      combineDecision,
+      buildSupplementaryWarnings,
+      checkConcDiscrepancy,
+      triageSample,
+      triageAll,
+    } from '../core/triage.js';
+
+    // ── Minimal test harness ──────────────────────────────────────────────────
+
+    const rows = [];
+    let passed = 0, failed = 0;
+
+    function test(name, fn) {
+      try {
+        fn();
+        passed++;
+        rows.push({ pass: true, name, detail: '' });
+      } catch (e) {
+        failed++;
+        rows.push({ pass: false, name, detail: e.message });
+        console.error('FAIL:', name, '\n ', e.message);
+      }
+    }
+
+    function assertEqual(actual, expected, label = '') {
+      if (actual !== expected) throw new Error(`${label ? label + ': ' : ''}expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+    }
+    function assertApprox(actual, expected, tol, label = '') {
+      if (Math.abs(actual - expected) > tol) throw new Error(`${label ? label + ': ' : ''}expected ~${expected}, got ${actual}`);
+    }
+    function assertIncludes(hay, needle, label = '') {
+      if (!hay.includes(needle)) throw new Error(`${label ? label + ': ' : ''}expected "${needle}" in "${hay}"`);
+    }
+    function assertNotIncludes(hay, needle, label = '') {
+      if (hay.includes(needle)) throw new Error(`${label ? label + ': ' : ''}expected "${needle}" NOT in string`);
+    }
+    function assertThrows(fn, label = '') {
+      try { fn(); } catch { return; }
+      throw new Error(`${label || 'expected throw'}`);
+    }
+
+    // ── Tests (mirrors test_triage.js) ────────────────────────────────────────
+
+    test('loadConfig: empty partial returns Standard defaults', () => {
+      const c = loadConfig();
+      assertEqual(c.conservatism, 0.5);
+      assertEqual(c.role_nanodrop_conc, ROLE.PRIMARY);
+      assertEqual(c.role_fluor_conc, ROLE.IGNORED);
+    });
+
+    test('loadConfig: partial override merges correctly', () => {
+      const c = loadConfig({ conservatism: 0.8 });
+      assertEqual(c.conservatism, 0.8);
+      assertEqual(c.downstream_tolerance, 0.3);
+    });
+
+    test('loadConfig: invalid role throws', () => {
+      assertThrows(() => loadConfig({ role_a260_280: 'Optional' }));
+    });
+
+    test('loadConfig: no Primary metrics throws', () => {
+      assertThrows(() => loadConfig({
+        role_nanodrop_conc: ROLE.IGNORED, role_a260_280: ROLE.IGNORED,
+        role_a260_230: ROLE.IGNORED, role_fluor_conc: ROLE.IGNORED,
+      }));
+    });
+
+    test('computeNetStrict: Standard = 0.2', () => {
+      assertApprox(computeNetStrict(loadConfig()), 0.2, 1e-10);
+    });
+
+    test('computeNetStrict: Research = -0.4', () => {
+      assertApprox(computeNetStrict(loadConfig({ conservatism: 0.2, downstream_tolerance: 0.6 })), -0.4, 1e-10);
+    });
+
+    test('computeNetStrict: clamps at +1', () => {
+      assertEqual(computeNetStrict(loadConfig({ conservatism: 1.0, downstream_tolerance: 0.0 })), 1.0);
+    });
+
+    test('computeNetStrict: clamps at -1', () => {
+      assertEqual(computeNetStrict(loadConfig({ conservatism: 0.0, downstream_tolerance: 1.0 })), -1.0);
+    });
+
+    test('computeEffectiveThresholds: NS=0 leaves thresholds unchanged', () => {
+      const t = computeEffectiveThresholds(loadConfig({ conservatism: 0.5, downstream_tolerance: 0.5 }));
+      assertApprox(t.nd_must, 10, 1e-10);
+      assertApprox(t.a230_borderline, 1.60, 1e-10);
+    });
+
+    test('computeEffectiveThresholds: NS=+1 shifts by full delta', () => {
+      const t = computeEffectiveThresholds(loadConfig({ conservatism: 1.0, downstream_tolerance: 0.0 }));
+      assertApprox(t.nd_must, 15, 1e-10);
+      assertApprox(t.a230_must, 1.45, 1e-10);
+    });
+
+    test('computeEffectiveThresholds: a280_upper never shifts', () => {
+      const t = computeEffectiveThresholds(loadConfig({ conservatism: 1.0, downstream_tolerance: 0.0 }));
+      assertApprox(t.a280_upper, 2.20, 1e-10);
+    });
+
+    test('classifyNdConc: null → MISSING', () => {
+      assertEqual(classifyNdConc(null, computeEffectiveThresholds(loadConfig())).state, STATE.MISSING);
+    });
+
+    test('classifyNdConc: below must → MUST', () => {
+      assertEqual(classifyNdConc(5, computeEffectiveThresholds(loadConfig())).state, STATE.MUST);
+    });
+
+    test('classifyNdConc: borderline → BORDERLINE', () => {
+      assertEqual(classifyNdConc(15, computeEffectiveThresholds(loadConfig())).state, STATE.BORDERLINE);
+    });
+
+    test('classifyNdConc: acceptable → USE', () => {
+      assertEqual(classifyNdConc(85, computeEffectiveThresholds(loadConfig())).state, STATE.USE);
+    });
+
+    test('classifyA280: null → MISSING', () => {
+      assertEqual(classifyA280(null, computeEffectiveThresholds(loadConfig())).state, STATE.MISSING);
+    });
+
+    test('classifyA280: below must → MUST', () => {
+      assertEqual(classifyA280(1.50, computeEffectiveThresholds(loadConfig())).state, STATE.MUST);
+    });
+
+    test('classifyA280: above upper bound → USE with highRatioNote', () => {
+      const r = classifyA280(2.50, computeEffectiveThresholds(loadConfig()));
+      assertEqual(r.state, STATE.USE);
+      if (!r.highRatioNote || !r.highRatioNote.includes('upper bound')) throw new Error('Expected highRatioNote');
+    });
+
+    test('classifyA230: below must → MUST', () => {
+      assertEqual(classifyA230(1.05, computeEffectiveThresholds(loadConfig())).state, STATE.MUST);
+    });
+
+    test('classifyA230: borderline → BORDERLINE', () => {
+      assertEqual(classifyA230(1.40, computeEffectiveThresholds(loadConfig({ conservatism: 0.5, downstream_tolerance: 0.5 }))).state, STATE.BORDERLINE);
+    });
+
+    test('classifyFlConc: uses assay label', () => {
+      assertIncludes(classifyFlConc(5, computeEffectiveThresholds(loadConfig()), 'Qubit').rationale, 'Qubit');
+    });
+
+    test('combineDecision rule 1: conc MUST', () => {
+      const cfg = loadConfig(); const t = computeEffectiveThresholds(cfg);
+      assertEqual(combineDecision(classifyMetrics({ nd_conc: 5, a260_280: 1.82, a260_230: 2.10, fl_conc: null }, cfg, t)).decision, DECISION.MUST);
+    });
+
+    test('combineDecision rule 2: A230 MUST', () => {
+      const cfg = loadConfig(); const t = computeEffectiveThresholds(cfg);
+      assertEqual(combineDecision(classifyMetrics({ nd_conc: 85, a260_280: 1.82, a260_230: 1.05, fl_conc: null }, cfg, t)).decision, DECISION.MUST);
+    });
+
+    test('combineDecision rule 3: A280 MUST', () => {
+      const cfg = loadConfig(); const t = computeEffectiveThresholds(cfg);
+      assertEqual(combineDecision(classifyMetrics({ nd_conc: 85, a260_280: 1.42, a260_230: 2.10, fl_conc: null }, cfg, t)).decision, DECISION.MUST);
+    });
+
+    test('combineDecision rule 4: any BORDERLINE', () => {
+      const cfg = loadConfig(); const t = computeEffectiveThresholds(cfg);
+      assertEqual(combineDecision(classifyMetrics({ nd_conc: 85, a260_280: 1.82, a260_230: 1.40, fl_conc: null }, cfg, t)).decision, DECISION.BORDERLINE);
+    });
+
+    test('combineDecision rule 5: all USE', () => {
+      const cfg = loadConfig(); const t = computeEffectiveThresholds(cfg);
+      assertEqual(combineDecision(classifyMetrics({ nd_conc: 85, a260_280: 1.82, a260_230: 2.10, fl_conc: null }, cfg, t)).decision, DECISION.USE);
+    });
+
+    test('combineDecision rule 0: all MISSING → USE', () => {
+      const cfg = loadConfig(); const t = computeEffectiveThresholds(cfg);
+      assertEqual(combineDecision(classifyMetrics({ nd_conc: null, a260_280: null, a260_230: null, fl_conc: null }, cfg, t)).decision, DECISION.USE);
+    });
+
+    test('Supplementary MUST does not change decision', () => {
+      const cfg = loadConfig({ role_nanodrop_conc: ROLE.SUPPLEMENTARY, role_a260_280: ROLE.PRIMARY, role_a260_230: ROLE.PRIMARY, role_fluor_conc: ROLE.IGNORED });
+      const t = computeEffectiveThresholds(cfg);
+      assertEqual(combineDecision(classifyMetrics({ nd_conc: 5, a260_280: 1.82, a260_230: 2.10, fl_conc: null }, cfg, t)).decision, DECISION.USE);
+    });
+
+    test('checkConcDiscrepancy: both ignored → not flagged', () => {
+      assertEqual(checkConcDiscrepancy({ nd_conc: 100, fl_conc: 50 }, loadConfig()).flagged, false);
+    });
+
+    test('checkConcDiscrepancy: >30% flagged', () => {
+      const cfg = loadConfig({ role_nanodrop_conc: ROLE.SUPPLEMENTARY, role_fluor_conc: ROLE.PRIMARY, role_a260_280: ROLE.PRIMARY, role_a260_230: ROLE.PRIMARY });
+      assertEqual(checkConcDiscrepancy({ nd_conc: 100, fl_conc: 50 }, cfg).flagged, true);
+    });
+
+    test('triageSample: all good → Use as-is', () => {
+      assertEqual(triageSample({ nd_conc: 150, a260_280: 1.82, a260_230: 2.10, fl_conc: null }, loadConfig()).decision, DECISION.USE);
+    });
+
+    test('triageSample: A230 contamination → Must cleanup', () => {
+      const r = triageSample({ nd_conc: 85, a260_280: 1.82, a260_230: 1.05, fl_conc: null }, loadConfig());
+      assertEqual(r.decision, DECISION.MUST);
+    });
+
+    test('triageSample: borderline concentration → Borderline', () => {
+      assertEqual(triageSample({ nd_conc: 15, a260_280: 1.82, a260_230: 2.10, fl_conc: null }, loadConfig()).decision, DECISION.BORDERLINE);
+    });
+
+    // Fixture-driven
+    const resp = await fetch('./fixtures/sample_rows.json');
+    const fixtures = await resp.json();
+    for (const fx of fixtures) {
+      test(`fixture: ${fx.id}`, () => {
+        const cfg = loadConfig(fx.config_override || {});
+        const result = triageSample(fx.input, cfg);
+        if (fx.expected.decision !== undefined) assertEqual(result.decision, fx.expected.decision, fx.id);
+        for (const n of (fx.expected.rationale_includes || [])) assertIncludes(result.rationale, n, fx.id);
+        for (const n of (fx.expected.rationale_not_includes || [])) assertNotIncludes(result.rationale, n, fx.id);
+      });
+    }
+
+    // ── Render ────────────────────────────────────────────────────────────────
+
+    const tbody = document.getElementById('results');
+    for (const row of rows) {
+      const tr = document.createElement('tr');
+      tr.className = row.pass ? 'pass' : 'fail';
+      tr.innerHTML = `<td>${row.pass ? '✓' : '✗'}</td><td>${row.name}</td><td><pre>${row.detail}</pre></td>`;
+      tbody.appendChild(tr);
+    }
+    const summary = document.getElementById('summary');
+    summary.textContent = `${passed} passed, ${failed} failed`;
+    summary.className = failed === 0 ? 'pass' : 'fail';
+  </script>
+</body>
+</html>

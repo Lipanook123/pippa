@@ -1,0 +1,187 @@
+[
+  {
+    "id": "all-good-standard",
+    "description": "All metrics well within acceptable range — Standard preset",
+    "config_override": {},
+    "input": { "nd_conc": 150.0, "a260_280": 1.82, "a260_230": 2.10, "fl_conc": null },
+    "expected": {
+      "decision": "Use as-is",
+      "rationale_includes": ["A260/A280 (1.82)", "A260/A230 (2.10)", "NanoDrop concentration (150.0"]
+    }
+  },
+  {
+    "id": "a230-must",
+    "description": "A260/A230 below must-cleanup threshold",
+    "config_override": {},
+    "input": { "nd_conc": 85.0, "a260_280": 1.82, "a260_230": 1.05, "fl_conc": null },
+    "expected": {
+      "decision": "Must cleanup or repeat",
+      "rationale_includes": ["A260/A230 (1.05)"]
+    }
+  },
+  {
+    "id": "a280-must",
+    "description": "A260/A280 below must-cleanup threshold",
+    "config_override": {},
+    "input": { "nd_conc": 85.0, "a260_280": 1.42, "a260_230": 2.10, "fl_conc": null },
+    "expected": {
+      "decision": "Must cleanup or repeat",
+      "rationale_includes": ["A260/A280 (1.42)"]
+    }
+  },
+  {
+    "id": "nd-conc-must",
+    "description": "NanoDrop concentration below must-cleanup threshold",
+    "config_override": {},
+    "input": { "nd_conc": 5.0, "a260_280": 1.82, "a260_230": 2.10, "fl_conc": null },
+    "expected": {
+      "decision": "Must cleanup or repeat",
+      "rationale_includes": ["NanoDrop concentration (5.0"]
+    }
+  },
+  {
+    "id": "a230-borderline",
+    "description": "A260/A230 in borderline range",
+    "config_override": {},
+    "input": { "nd_conc": 85.0, "a260_280": 1.82, "a260_230": 1.40, "fl_conc": null },
+    "expected": {
+      "decision": "Borderline",
+      "rationale_includes": ["A260/A230 (1.40)"]
+    }
+  },
+  {
+    "id": "nd-conc-borderline",
+    "description": "NanoDrop concentration in borderline range",
+    "config_override": {},
+    "input": { "nd_conc": 15.0, "a260_280": 1.82, "a260_230": 2.10, "fl_conc": null },
+    "expected": {
+      "decision": "Borderline",
+      "rationale_includes": ["NanoDrop concentration (15.0"]
+    }
+  },
+  {
+    "id": "a280-high-ratio",
+    "description": "A260/A280 above upper bound — should still be Use as-is but with note",
+    "config_override": {},
+    "input": { "nd_conc": 85.0, "a260_280": 2.50, "a260_230": 2.10, "fl_conc": null },
+    "expected": {
+      "decision": "Use as-is",
+      "rationale_includes": ["2.50"]
+    }
+  },
+  {
+    "id": "supplementary-must-does-not-change-decision",
+    "description": "Supplementary metric in MUST state should not override Primary USE",
+    "config_override": {
+      "role_nanodrop_conc": "Supplementary",
+      "role_a260_280": "Primary",
+      "role_a260_230": "Primary",
+      "role_fluor_conc": "Ignored"
+    },
+    "input": { "nd_conc": 5.0, "a260_280": 1.82, "a260_230": 2.10, "fl_conc": null },
+    "expected": {
+      "decision": "Use as-is",
+      "rationale_includes": ["advisory"]
+    }
+  },
+  {
+    "id": "all-missing",
+    "description": "All values null — should return Use as-is with no-data note",
+    "config_override": {},
+    "input": { "nd_conc": null, "a260_280": null, "a260_230": null, "fl_conc": null },
+    "expected": {
+      "decision": "Use as-is",
+      "rationale_includes": ["No primary metrics"]
+    }
+  },
+  {
+    "id": "discrepancy-flagged",
+    "description": "NanoDrop and fluorescence concentrations differ by >30%",
+    "config_override": {
+      "role_nanodrop_conc": "Supplementary",
+      "role_fluor_conc": "Primary"
+    },
+    "input": { "nd_conc": 100.0, "a260_280": 1.82, "a260_230": 2.10, "fl_conc": 50.0 },
+    "expected": {
+      "decision": "Use as-is",
+      "rationale_includes": ["differ by"]
+    }
+  },
+  {
+    "id": "discrepancy-within-tolerance",
+    "description": "Concentrations differ by <30% — no discrepancy flag",
+    "config_override": {
+      "role_nanodrop_conc": "Supplementary",
+      "role_fluor_conc": "Primary"
+    },
+    "input": { "nd_conc": 85.0, "a260_280": 1.82, "a260_230": 2.10, "fl_conc": 75.0 },
+    "expected": {
+      "decision": "Use as-is",
+      "rationale_not_includes": ["differ by"]
+    }
+  },
+  {
+    "id": "research-preset-passes-borderline",
+    "description": "Values borderline under Standard but should pass under Research (NS=-0.4)",
+    "config_override": {
+      "conservatism": 0.2,
+      "downstream_tolerance": 0.6
+    },
+    "input": { "nd_conc": 18.0, "a260_280": 1.68, "a260_230": 1.50, "fl_conc": null },
+    "expected": {
+      "decision": "Use as-is"
+    }
+  },
+  {
+    "id": "service-lab-fails-borderline",
+    "description": "A280=1.66 is USE under Research (NS=-0.4, borderline=1.66) but MUST under Service Lab (NS=+0.7, must=1.67)",
+    "config_override": {
+      "conservatism": 0.8,
+      "downstream_tolerance": 0.1
+    },
+    "input": { "nd_conc": 100.0, "a260_280": 1.66, "a260_230": 2.10, "fl_conc": null },
+    "expected": {
+      "decision": "Must cleanup or repeat"
+    }
+  },
+  {
+    "id": "net-strict-clamp-positive",
+    "description": "NS clamped to +1: nd_borderline=25, nd=14 < must(15) → MUST",
+    "config_override": {
+      "conservatism": 1.0,
+      "downstream_tolerance": 0.0
+    },
+    "input": { "nd_conc": 14.0, "a260_280": 1.82, "a260_230": 1.82, "fl_conc": null },
+    "expected": {
+      "decision": "Must cleanup or repeat"
+    }
+  },
+  {
+    "id": "net-strict-clamp-negative",
+    "description": "NS clamped to -1: effective nd_borderline=15, a280_borderline=1.60, a230_borderline=1.35 — all pass at these values",
+    "config_override": {
+      "conservatism": 0.0,
+      "downstream_tolerance": 1.0
+    },
+    "input": { "nd_conc": 20.0, "a260_280": 1.65, "a260_230": 1.38, "fl_conc": null },
+    "expected": {
+      "decision": "Use as-is"
+    }
+  },
+  {
+    "id": "fluorescence-primary-must",
+    "description": "Fluorescence concentration Primary and below must-threshold",
+    "config_override": {
+      "role_nanodrop_conc": "Ignored",
+      "role_a260_280": "Primary",
+      "role_a260_230": "Primary",
+      "role_fluor_conc": "Primary",
+      "fluor_assay_label": "Qubit"
+    },
+    "input": { "nd_conc": null, "a260_280": 1.82, "a260_230": 2.10, "fl_conc": 4.0 },
+    "expected": {
+      "decision": "Must cleanup or repeat",
+      "rationale_includes": ["Qubit"]
+    }
+  }
+]
