@@ -376,12 +376,33 @@ function renderResults(inputRows, results) {
 
 // ── Section 9: Excel export ───────────────────────────────────────────────────
 
+const DECISION_CELL_STYLES = {
+  'Use as-is':             { fill: { patternType: 'solid', fgColor: { rgb: 'E8F5E9' } }, font: { bold: true, color: { rgb: '1B5E20' } } },
+  'Borderline':            { fill: { patternType: 'solid', fgColor: { rgb: 'FFF3E0' } }, font: { bold: true, color: { rgb: 'E65100' } } },
+  'Must cleanup or repeat':{ fill: { patternType: 'solid', fgColor: { rgb: 'FFEBEE' } }, font: { bold: true, color: { rgb: 'B71C1C' } } },
+};
+
+function applyDecisionStyles(ws, rowCount) {
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  let decisionCol = null;
+  for (let c = range.s.c; c <= range.e.c; c++) {
+    const cell = ws[XLSX.utils.encode_cell({ r: 0, c })];
+    if (cell && cell.v === 'Decision') { decisionCol = c; break; }
+  }
+  if (decisionCol === null) return;
+  for (let r = 1; r <= rowCount; r++) {
+    const addr = XLSX.utils.encode_cell({ r, c: decisionCol });
+    const cell = ws[addr];
+    if (cell && DECISION_CELL_STYLES[cell.v]) {
+      cell.s = DECISION_CELL_STYLES[cell.v];
+    }
+  }
+}
+
 function downloadResults() {
   if (!state.workbook || state.results.length === 0) return;
 
   const wb = XLSX.utils.book_new();
-
-  // Build combined rows: original data + three new columns
   const outputRows = state.inputRows.map((row, i) => {
     const result = state.results[i];
     return {
@@ -391,49 +412,48 @@ function downloadResults() {
       'Recommended Action': result.recommended_action,
     };
   });
-
   const ws = XLSX.utils.json_to_sheet(outputRows, { header: [...state.headers, 'Decision', 'Rationale', 'Recommended Action'] });
+  applyDecisionStyles(ws, state.results.length);
   XLSX.utils.book_append_sheet(wb, ws, 'PIPPA Results');
-  XLSX.writeFile(wb, 'PIPPA_results.xlsx');
+
+  const buf  = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'PIPPA_results.xlsx';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 // ── Section 10: Example file generator ───────────────────────────────────────
 
 function generateExampleFile() {
-  console.log('[PIPPA] generateExampleFile called');
-  console.log('[PIPPA] XLSX available:', typeof XLSX, typeof window.XLSX);
-  try {
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet([
-      ['Sample ID', 'NanoDrop Conc (ng/µL)', 'A260/A280', 'A260/A230', 'Qubit (ng/µL)'],
-      ['DNA-001', 185.4, 1.89, 2.12, ''],
-      ['DNA-002', 142.8, 1.84, 1.95, ''],
-      ['DNA-003', 67.3,  1.82, 1.45, ''],
-      ['DNA-004', 18.6,  1.88, 2.08, ''],
-      ['DNA-005', 94.2,  1.58, 2.01, ''],
-      ['DNA-006', 89.7,  1.83, 1.08, ''],
-      ['DNA-007', 7.4,   1.79, 1.96, ''],
-      ['DNA-008', 156.0, 2.31, 2.18, 148.5],
-    ]);
-    console.log('[PIPPA] worksheet created:', ws);
-    XLSX.utils.book_append_sheet(wb, ws, 'Samples');
-    const buf  = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
-    console.log('[PIPPA] buffer size:', buf.byteLength);
-    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const url  = URL.createObjectURL(blob);
-    console.log('[PIPPA] blob URL:', url);
-    const a    = document.createElement('a');
-    a.href     = url;
-    a.download = 'PIPPA_example_input.xlsx';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    console.log('[PIPPA] download triggered');
-  } catch (err) {
-    console.error('[PIPPA] generateExampleFile error:', err);
-    alert('Could not generate example file: ' + err.message);
-  }
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['Sample ID', 'NanoDrop Conc (ng/µL)', 'A260/A280', 'A260/A230', 'Qubit (ng/µL)'],
+    ['DNA-001', 185.4, 1.89, 2.12, ''],
+    ['DNA-002', 142.8, 1.84, 1.95, ''],
+    ['DNA-003', 67.3,  1.82, 1.45, ''],
+    ['DNA-004', 18.6,  1.88, 2.08, ''],
+    ['DNA-005', 94.2,  1.58, 2.01, ''],
+    ['DNA-006', 89.7,  1.83, 1.08, ''],
+    ['DNA-007', 7.4,   1.79, 1.96, ''],
+    ['DNA-008', 156.0, 2.31, 2.18, 148.5],
+  ]);
+  XLSX.utils.book_append_sheet(wb, ws, 'Samples');
+  const buf  = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'PIPPA_example_input.xlsx';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 // ── Section 11: Profile save / load ──────────────────────────────────────────
@@ -521,16 +541,7 @@ function initEventListeners() {
   });
 
   // Example file download
-  const btnExample = document.getElementById('btn-example-file');
-  console.log('[PIPPA] btn-example-file element:', btnExample);
-  if (btnExample) {
-    btnExample.addEventListener('click', (e) => {
-      console.log('[PIPPA] btn-example-file clicked, event:', e);
-      generateExampleFile();
-    });
-  } else {
-    console.error('[PIPPA] btn-example-file NOT FOUND in DOM');
-  }
+  document.getElementById('btn-example-file').addEventListener('click', generateExampleFile);
 
   // Run triage
   document.getElementById('btn-run').addEventListener('click', runTriage);
