@@ -3,6 +3,9 @@ PIPPA — core triage engine (Python port)
 Pure functions only. No I/O, no side effects.
 JavaScript counterpart: core/triage.js (keep in sync)
 
+SPDX-License-Identifier: MIT
+Copyright (c) 2026 David Walker — https://github.com/Lipanook123/pippa
+
 Function naming: snake_case mirrors camelCase in triage.js exactly.
 """
 

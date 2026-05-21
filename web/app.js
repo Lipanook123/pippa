@@ -2,6 +2,9 @@
  * PIPPA web application controller
  * Imports core triage engine; drives all UI interactions.
  * Requires SheetJS (XLSX global) loaded before this module.
+ *
+ * SPDX-License-Identifier: MIT
+ * Copyright (c) 2026 David Walker — https://github.com/Lipanook123/pippa
  */
 
 import {

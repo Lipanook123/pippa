@@ -2,6 +2,9 @@
  * PIPPA — core triage engine
  * Pure functions only. No DOM access, no imports, no side effects.
  * Python counterpart: core/triage.py (keep in sync)
+ *
+ * SPDX-License-Identifier: MIT
+ * Copyright (c) 2026 David Walker — https://github.com/Lipanook123/pippa
  */
 
 // ── Section 1: Constants ──────────────────────────────────────────────────────
