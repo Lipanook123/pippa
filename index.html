@@ -13,6 +13,61 @@
   </header>
 
   <main>
+    <!-- User Guide (collapsible) -->
+    <details id="details-guide">
+      <summary>How to use PIPPA</summary>
+      <div class="details-body">
+
+        <div class="banner banner-info" style="padding:0.6rem 0.9rem; border-radius:4px; margin-bottom:1rem; font-size:0.85rem">
+          PIPPA classifies each DNA sample as <strong>Use as-is</strong>, <strong>Borderline</strong>, or
+          <strong>Must cleanup or repeat</strong> based on NanoDrop spectrophotometry data and optional
+          fluorescence quantification. It applies configurable quality thresholds that shift automatically
+          with your chosen conservatism and downstream-tolerance settings.
+        </div>
+
+        <p style="font-weight:600; font-size:0.85rem; margin-bottom:0.4rem">What you need</p>
+        <ul style="font-size:0.85rem; padding-left:1.25rem; margin-bottom:1rem; line-height:1.7">
+          <li>A NanoDrop export in <strong>.xlsx</strong> or <strong>.xls</strong> format</li>
+          <li>Columns for concentration (ng/µL), A260/A280, and A260/A230 — any subset works</li>
+          <li>Optional: a Qubit or PicoGreen fluorescence concentration column</li>
+        </ul>
+
+        <p style="font-weight:600; font-size:0.85rem; margin-bottom:0.4rem">Column naming</p>
+        <p style="font-size:0.85rem; margin-bottom:0.4rem; color:var(--color-text-muted)">
+          PIPPA auto-detects columns by matching common header names. These patterns always work:
+        </p>
+        <ul style="font-size:0.85rem; padding-left:1.25rem; margin-bottom:1rem; line-height:1.7">
+          <li><strong>Concentration:</strong> anything containing <em>ng/µL</em>, <em>nanodrop</em>, or <em>nucleic acid</em></li>
+          <li><strong>A260/A280:</strong> anything containing <em>260/280</em></li>
+          <li><strong>A260/A230:</strong> anything containing <em>260/230</em></li>
+          <li><strong>Fluorescence:</strong> anything containing <em>Qubit</em>, <em>PicoGreen</em>, or <em>fluor</em></li>
+        </ul>
+        <p style="font-size:0.85rem; margin-bottom:1rem; color:var(--color-text-muted)">
+          If auto-detection is wrong, use the dropdowns in Step 3 to correct the mapping.
+        </p>
+
+        <p style="font-weight:600; font-size:0.85rem; margin-bottom:0.4rem">The three decisions</p>
+        <ul style="font-size:0.85rem; padding-left:1.25rem; margin-bottom:1rem; line-height:1.7">
+          <li><strong style="color:var(--color-use)">Use as-is</strong> — all quality metrics are within acceptable limits; proceed to library prep.</li>
+          <li><strong style="color:var(--color-borderline)">Borderline</strong> — one or more metrics are marginal; consider the downstream application before proceeding.</li>
+          <li><strong style="color:var(--color-must)">Must cleanup or repeat</strong> — at least one critical metric is outside acceptable limits; cleanup or re-extraction is required.</li>
+        </ul>
+
+        <p style="font-weight:600; font-size:0.85rem; margin-bottom:0.4rem">Presets explained</p>
+        <ul style="font-size:0.85rem; padding-left:1.25rem; margin-bottom:1rem; line-height:1.7">
+          <li><strong>Research (Permissive)</strong> — relaxed thresholds for exploratory work where sample scarcity outweighs purity concerns.</li>
+          <li><strong>Standard</strong> — balanced defaults suitable for most NGS library preparations.</li>
+          <li><strong>Service Lab (Strict)</strong> — tightened thresholds for fee-for-service labs where downstream failures carry financial or reputational risk.</li>
+        </ul>
+
+        <p style="font-weight:600; font-size:0.85rem; margin-bottom:0.6rem">Try with example data</p>
+        <div class="btn-row">
+          <button class="btn btn-secondary" id="btn-example-file">Download example input file</button>
+        </div>
+
+      </div>
+    </details>
+
     <!-- Step 1: Configuration (preset + advanced) -->
     <section class="step" id="step-config">
       <h2><span class="step-number">1</span>Configuration</h2>
