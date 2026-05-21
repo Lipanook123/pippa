@@ -15,6 +15,10 @@ A configurable DNA quality triage tool that turns NanoDrop spectrophotometry (an
 
 ## Usage
 
+### GitHub Page
+Run PIPPA directly, with no setup needed by visiting <https://lipanook123.github.io/pippa/>
+
+### Local deployment
 1. Open `index.html` via a local HTTP server (required for ES modules):
    ```
    python -m http.server 8080
