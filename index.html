@@ -245,9 +245,8 @@
     </section>
   </main>
 
-  <!-- xlsx-js-style: SheetJS fork with cell style support, loaded before app.js -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx-js-style.min.js"></script>
-  <script>var XLSX = XLSXStyle;</script>
+  <!-- xlsx-js-style: vendored locally to avoid CDN tracking-prevention blocks -->
+  <script src="web/vendor/xlsx-js-style.min.js"></script>
   <script type="module" src="web/app.js"></script>
 </body>
 </html>
