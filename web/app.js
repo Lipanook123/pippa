@@ -400,29 +400,40 @@ function downloadResults() {
 // ── Section 10: Example file generator ───────────────────────────────────────
 
 function generateExampleFile() {
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet([
-    ['Sample ID', 'NanoDrop Conc (ng/µL)', 'A260/A280', 'A260/A230', 'Qubit (ng/µL)'],
-    ['DNA-001', 185.4, 1.89, 2.12, ''],
-    ['DNA-002', 142.8, 1.84, 1.95, ''],
-    ['DNA-003', 67.3,  1.82, 1.45, ''],
-    ['DNA-004', 18.6,  1.88, 2.08, ''],
-    ['DNA-005', 94.2,  1.58, 2.01, ''],
-    ['DNA-006', 89.7,  1.83, 1.08, ''],
-    ['DNA-007', 7.4,   1.79, 1.96, ''],
-    ['DNA-008', 156.0, 2.31, 2.18, 148.5],
-  ]);
-  XLSX.utils.book_append_sheet(wb, ws, 'Samples');
-  const buf  = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
-  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = 'PIPPA_example_input.xlsx';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  console.log('[PIPPA] generateExampleFile called');
+  console.log('[PIPPA] XLSX available:', typeof XLSX, typeof window.XLSX);
+  try {
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['Sample ID', 'NanoDrop Conc (ng/µL)', 'A260/A280', 'A260/A230', 'Qubit (ng/µL)'],
+      ['DNA-001', 185.4, 1.89, 2.12, ''],
+      ['DNA-002', 142.8, 1.84, 1.95, ''],
+      ['DNA-003', 67.3,  1.82, 1.45, ''],
+      ['DNA-004', 18.6,  1.88, 2.08, ''],
+      ['DNA-005', 94.2,  1.58, 2.01, ''],
+      ['DNA-006', 89.7,  1.83, 1.08, ''],
+      ['DNA-007', 7.4,   1.79, 1.96, ''],
+      ['DNA-008', 156.0, 2.31, 2.18, 148.5],
+    ]);
+    console.log('[PIPPA] worksheet created:', ws);
+    XLSX.utils.book_append_sheet(wb, ws, 'Samples');
+    const buf  = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+    console.log('[PIPPA] buffer size:', buf.byteLength);
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url  = URL.createObjectURL(blob);
+    console.log('[PIPPA] blob URL:', url);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = 'PIPPA_example_input.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    console.log('[PIPPA] download triggered');
+  } catch (err) {
+    console.error('[PIPPA] generateExampleFile error:', err);
+    alert('Could not generate example file: ' + err.message);
+  }
 }
 
 // ── Section 11: Profile save / load ──────────────────────────────────────────
@@ -510,7 +521,16 @@ function initEventListeners() {
   });
 
   // Example file download
-  document.getElementById('btn-example-file').addEventListener('click', generateExampleFile);
+  const btnExample = document.getElementById('btn-example-file');
+  console.log('[PIPPA] btn-example-file element:', btnExample);
+  if (btnExample) {
+    btnExample.addEventListener('click', (e) => {
+      console.log('[PIPPA] btn-example-file clicked, event:', e);
+      generateExampleFile();
+    });
+  } else {
+    console.error('[PIPPA] btn-example-file NOT FOUND in DOM');
+  }
 
   // Run triage
   document.getElementById('btn-run').addEventListener('click', runTriage);
