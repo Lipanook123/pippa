@@ -397,7 +397,26 @@ function downloadResults() {
   XLSX.writeFile(wb, 'PIPPA_results.xlsx');
 }
 
-// ── Section 10: Profile save / load ──────────────────────────────────────────
+// ── Section 10: Example file generator ───────────────────────────────────────
+
+function generateExampleFile() {
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['Sample ID', 'NanoDrop Conc (ng/µL)', 'A260/A280', 'A260/A230', 'Qubit (ng/µL)'],
+    ['DNA-001', 185.4, 1.89, 2.12, null],  // Use as-is
+    ['DNA-002', 142.8, 1.84, 1.95, null],  // Use as-is
+    ['DNA-003', 67.3,  1.82, 1.45, null],  // Borderline (low A260/A230)
+    ['DNA-004', 18.6,  1.88, 2.08, null],  // Borderline (low conc)
+    ['DNA-005', 94.2,  1.58, 2.01, null],  // Must cleanup (low A260/A280)
+    ['DNA-006', 89.7,  1.83, 1.08, null],  // Must cleanup (very low A260/A230)
+    ['DNA-007', 7.4,   1.79, 1.96, null],  // Must cleanup (very low conc)
+    ['DNA-008', 156.0, 2.31, 2.18, 148.5], // Use as-is (A280 upper-bound note)
+  ]);
+  XLSX.utils.book_append_sheet(wb, ws, 'Samples');
+  XLSX.writeFile(wb, 'PIPPA_example_input.xlsx');
+}
+
+// ── Section 11: Profile save / load ──────────────────────────────────────────
 
 function saveProfile() {
   let config;
@@ -436,14 +455,14 @@ function loadProfile(file) {
   reader.readAsText(file);
 }
 
-// ── Section 11: Utility helpers ───────────────────────────────────────────────
+// ── Section 12: Utility helpers ───────────────────────────────────────────────
 
 function showSection(id) {
   const el = document.getElementById(id);
   if (el) el.hidden = false;
 }
 
-// ── Section 12: Event wiring ──────────────────────────────────────────────────
+// ── Section 13: Event wiring ──────────────────────────────────────────────────
 
 function initEventListeners() {
   // File upload — click
@@ -480,6 +499,9 @@ function initEventListeners() {
     state.activePreset = null;
     renderPresetButtons();
   });
+
+  // Example file download
+  document.getElementById('btn-example-file').addEventListener('click', generateExampleFile);
 
   // Run triage
   document.getElementById('btn-run').addEventListener('click', runTriage);
